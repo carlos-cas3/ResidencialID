@@ -38,18 +38,15 @@ def augment_face_conservative(face_img):
     return augmented
 
 
-def extract_faces(video_path, nombre, skip_frames=2, max_faces=100, use_augmentation=True):
-    """
-    Extrae rostros de un video con augmentación conservadora.
+def extract_faces(video_path, nombre, skip_frames=2, max_faces=100, use_augmentation=True, residente_id=None):
+    # Si quieres guardar por ID:
+    if residente_id is not None:
+        output_dir = f"dataset/{residente_id}_{nombre}"
+    else:
+        output_dir = f"dataset/{nombre}"
     
-    MEJORAS CLAVE:
-    - Más rostros base (100 en lugar de 49)
-    - Augmentación conservadora (3x en lugar de 8x)
-    - Mejor detección con margen
-    - Total: ~300 imágenes de calidad
-    """
-    output_dir = f"dataset/{nombre}"
     ensure_dir(output_dir)
+
 
     cap = cv2.VideoCapture(video_path)
     

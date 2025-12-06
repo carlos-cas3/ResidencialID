@@ -9,7 +9,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from train_model import train_model
-from main import run_recognition
 from database import add_residente
 from extract_from_video import extract_faces
 from reportes_excel import generar_reporte_excel
@@ -99,15 +98,6 @@ def train_model_callback():
         messagebox.showinfo("Éxito", "Modelo entrenado correctamente.")
     except Exception as e:
         messagebox.showerror("Error", f"No se pudo entrenar: {e}")
-
-
-def run_recognition_callback():
-    """Callback para iniciar el reconocimiento facial."""
-    try:
-        run_recognition()
-    except Exception as e:
-        messagebox.showerror("Error", f"No se pudo iniciar el reconocimiento: {e}")
-
 
 def generar_reporte_callback():
     """Callback para generar reporte Excel."""
