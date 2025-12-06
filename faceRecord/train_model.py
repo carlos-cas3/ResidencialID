@@ -4,10 +4,11 @@ import numpy as np
 import json
 
 FACE_SIZE = 200
-BASE_DIR = "dataset"
-MAPPING_FILE = "mapping.json"  
+DEFAULT_BASE_DIR = "dataset"   # <-- valor por defecto
+MAPPING_FILE = "mapping.json"
 LABELS_OUT = "labels.txt"
 MODEL_OUT = "face_model.xml"
+
 
 def augment_image(image):
     augmented_images = []
@@ -22,21 +23,22 @@ def augment_image(image):
     bright = cv2.convertScaleAbs(image, alpha=1.1, beta=15)
     augmented_images.append(bright)
 
-    # Pequeño recorte y resize (más conservador)
+    # Recorte leve
     if rows > 40 and cols > 40:
         cropped = image[6:rows-6, 6:cols-6]
         cropped = cv2.resize(cropped, (cols, rows))
         augmented_images.append(cropped)
 
-    # (Opcional) flip horizontal — úsalo con precaución
+    # Flip horizontal
     flipped = cv2.flip(image, 1)
     augmented_images.append(flipped)
 
     return augmented_images
 
+
 def normalize_image(image):
-    # equalize para mejorar contraste
     return cv2.equalizeHist(image)
+
 
 def load_mapping():
     """Carga el mapping carpeta -> ID real de Supabase."""
@@ -45,26 +47,35 @@ def load_mapping():
             return json.load(f)
     return {}
 
+
 def save_mapping(mapping):
-    """Guarda el mapping actualizado."""
     with open(MAPPING_FILE, "w", encoding="utf-8") as f:
         json.dump(mapping, f, indent=2, ensure_ascii=False)
+
 
 def load_images(base_dir):
     faces = []
     labels = []
-    folder_list = sorted([d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))])
+
+    # lee carpetas del dataset
+    folder_list = sorted([
+        d for d in os.listdir(base_dir)
+        if os.path.isdir(os.path.join(base_dir, d))
+    ])
 
     for model_label, folder_name in enumerate(folder_list):
-        label_path = os.path.join(base_dir, folder_name)
-        for image_name in os.listdir(label_path):
-            image_path = os.path.join(label_path, image_name)
+        folder_path = os.path.join(base_dir, folder_name)
+
+        for image_name in os.listdir(folder_path):
+            image_path = os.path.join(folder_path, image_name)
             image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
             if image is None:
                 continue
-            # resize y normalize
+
+            # resize + normalize
             image = cv2.resize(image, (FACE_SIZE, FACE_SIZE))
             image = normalize_image(image)
+
             faces.append(image)
             labels.append(model_label)
 
@@ -77,38 +88,54 @@ def load_images(base_dir):
 
     return faces, labels, folder_list
 
-def train_model():
-    mapping = load_mapping()  # Cargar mapping existente
 
-    faces, labels, folder_list = load_images(BASE_DIR)
+def train_model(dataset_path=DEFAULT_BASE_DIR):
+    """
+    Entrena el modelo LBPH usando el dataset ubicado en `dataset_path`.
+    Compatible con microservicio FastAPI.
+    """
+    print(f"[TRAIN] Usando dataset en: {dataset_path}")
+
+    if not os.path.exists(dataset_path):
+        raise RuntimeError(f"No existe la carpeta dataset en: {dataset_path}")
+
+    mapping = load_mapping()
+    faces, labels, folder_list = load_images(dataset_path)
+
     if len(faces) == 0:
-        raise RuntimeError("No hay imágenes en dataset/. Asegúrate de extraer caras antes de entrenar.")
+        raise RuntimeError(
+            f"No hay imágenes en {dataset_path}. "
+            "Asegúrate de generar datasets antes de entrenar."
+        )
 
     # convertir a numpy
-    faces_np = np.array(faces)
     labels_np = np.array(labels)
 
-    # LBPH espera lista de imágenes (no necesariamente un array 4D)
+    # crear, entrenar y guardar modelo LBPH
     face_recognizer = cv2.face.LBPHFaceRecognizer_create()
     face_recognizer.train(faces, labels_np)
     face_recognizer.write(MODEL_OUT)
 
-    # ✅ Crear labels.txt con IDs REALES de Supabase
+    # escribir labels
     with open(LABELS_OUT, "w", encoding="utf-8") as f:
         for model_label, folder_name in enumerate(folder_list):
             if folder_name in mapping:
-                # ✅ Usar el ID real de Supabase
                 id_real = mapping[folder_name]
                 f.write(f"{model_label}:{id_real}\n")
             else:
-                # ⚠️ ADVERTENCIA: Esta carpeta no tiene ID en Supabase
-                print(f"⚠️ ADVERTENCIA: '{folder_name}' no tiene ID en mapping.json")
+                print(f"⚠️ '{folder_name}' no tiene ID en mapping.json")
                 f.write(f"{model_label}:DESCONOCIDO_{folder_name}\n")
 
-    print("✅ Modelo entrenado y guardado correctamente.")
-    print(f"   Modelo: {MODEL_OUT}")
-    print(f"   Labels: {LABELS_OUT}")
-    print(f"   Mapping: {MAPPING_FILE}")
+    print("✅ Modelo entrenado correctamente.")
+    print(f"   Modelo   → {MODEL_OUT}")
+    print(f"   Labels   → {LABELS_OUT}")
+    print(f"   Mapping  → {MAPPING_FILE}")
 
+    return MODEL_OUT   # <-- DEVUELVE LA RUTA PARA FASTAPI
+
+
+# --------------------------------------------------------------------
+# Permite ejecutar: python train_model.py
+# --------------------------------------------------------------------
 if __name__ == "__main__":
     train_model()

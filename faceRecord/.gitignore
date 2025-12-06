@@ -1,0 +1,20 @@
+# Archivos del proyecto
+config.py
+face_model.xml
+
+# Caches de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Entorno virtual
+venv/
+
+# Archivos generados
+videos/
+reportes/
+snapshots/
+dataset/
+temp_videos/
+
