@@ -10,7 +10,6 @@ from callbacks import (
     add_residente_grabando_callback,
     add_residente_subiendo_callback,
     train_model_callback,
-    run_recognition_callback,
     generar_reporte_callback
 )
 
@@ -72,13 +71,6 @@ def create_buttons(root, name_entry):
         text="Entrenar Modelo",
         **BUTTON_STYLE,
         command=train_model_callback
-    ).pack(pady=10)
-
-    tk.Button(
-        root,
-        text="Iniciar Reconocimiento",
-        **BUTTON_STYLE,
-        command=run_recognition_callback
     ).pack(pady=10)
 
     # Botón para generar reporte
